@@ -137,11 +137,15 @@ private fun UpdateSection(state: UpdateUiState, vm: UpdateViewModel) {
             )
             Spacer(Modifier.height(8.dp))
             when (state) {
-                UpdateUiState.Idle, UpdateUiState.Checking ->
+                UpdateUiState.Checking ->
                     Text("正在检查…", style = MaterialTheme.typography.bodyMedium)
 
-                UpdateUiState.UpToDate ->
-                    Text("已是最新版本", style = MaterialTheme.typography.bodyMedium)
+                UpdateUiState.Idle, UpdateUiState.UpToDate -> {
+                    if (state is UpdateUiState.UpToDate) {
+                        Text("已是最新版本", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    TextButton(onClick = vm::check) { Text("检查更新") }
+                }
 
                 is UpdateUiState.Available -> {
                     val m = state.manifest

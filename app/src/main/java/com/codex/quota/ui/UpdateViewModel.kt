@@ -67,7 +67,8 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             repo.markChecked()
             when (result) {
                 is UpdateCheck.Available -> _state.value = UpdateUiState.Available(result.manifest, fromAuto = true)
-                else -> _state.value = UpdateUiState.Idle // up-to-date / failed → no notice
+                UpdateCheck.UpToDate -> _state.value = UpdateUiState.UpToDate // show "已是最新版本"
+                null -> _state.value = UpdateUiState.Idle // failed → no notice, leave the manual button
             }
         }
     }

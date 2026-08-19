@@ -1,7 +1,7 @@
 {
-  "versionCode": 4,
-  "versionName": "1.2.1",
-  "apkUrl": "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.2.1.apk",
-  "sha256": "57095c3cdd6fc5a779140eb1bdfa8f1a421acbdd503365172583c0c6ec813683",
-  "changelog": ["更新源切换至 jsDelivr CDN，国内直连不再卡"]
+  "versionCode": 5,
+  "versionName": "1.2.2",
+  "apkUrl": "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.2.2.apk",
+  "sha256": "f6c9b396c5b96fae05d3e78372ff93d03ec66f4fae141c198b6630b0f22fcbe8",
+  "changelog": ["修复检查更新始终显示“正在检查”的误显示"]
 }
