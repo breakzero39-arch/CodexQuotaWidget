@@ -28,5 +28,6 @@ keystore/
 *.jpeg
 *.py
 *.ps1
+!release.ps1
 ui*.xml
 preview/
