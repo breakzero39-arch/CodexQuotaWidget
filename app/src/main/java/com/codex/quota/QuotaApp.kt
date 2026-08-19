@@ -7,6 +7,8 @@ import com.codex.quota.data.CodexUsageClient
 import com.codex.quota.data.QuotaRepository
 import com.codex.quota.data.auth.CodexAuthStore
 import com.codex.quota.data.auth.CodexOAuthClient
+import com.codex.quota.data.update.UpdateInstaller
+import com.codex.quota.data.update.UpdateRepository
 import com.codex.quota.work.QuotaRefreshScheduler
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
@@ -35,4 +37,8 @@ class AppContainer(application: Application) {
     val oauthClient = CodexOAuthClient(http)
     val usageClient = CodexUsageClient(http)
     val repository: QuotaRepository = ChatGptQuotaRepository(authStore, oauthClient, usageClient, store)
+
+    // In-app update: shares the OkHttp client; fully decoupled from quota/auth above.
+    val updateRepository = UpdateRepository(application, http)
+    val updateInstaller = UpdateInstaller(application, http)
 }

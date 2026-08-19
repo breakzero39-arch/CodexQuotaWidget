@@ -18,19 +18,25 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.codex.quota.BuildConfig
 import com.codex.quota.data.auth.CodexOAuthClient
 import com.codex.quota.ui.theme.QuotaTheme
 import java.time.Duration
@@ -53,6 +59,12 @@ private fun ConfigScreen() {
     val vm: AccountsViewModel = viewModel()
     val accounts by vm.accounts.collectAsState()
     val login by vm.login.collectAsState()
+
+    val updateVm: UpdateViewModel = viewModel()
+    val updateState by updateVm.state.collectAsState()
+
+    // Lightweight launch check — throttled to once/12h, never blocks or crashes startup.
+    LaunchedEffect(Unit) { updateVm.autoCheck() }
 
     Scaffold { padding ->
         Column(
@@ -107,7 +119,83 @@ private fun ConfigScreen() {
                 "长按主屏幕空白处 → 小组件 → Codex Quota → 选择要绑定的账号，再添加到桌面。",
                 style = MaterialTheme.typography.bodyMedium
             )
+            Spacer(Modifier.height(24.dp))
+            UpdateSection(state = updateState, vm = updateVm)
             Spacer(Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+private fun UpdateSection(state: UpdateUiState, vm: UpdateViewModel) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                "App Version  v${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.height(8.dp))
+            when (state) {
+                UpdateUiState.Idle, UpdateUiState.Checking ->
+                    Text("正在检查…", style = MaterialTheme.typography.bodyMedium)
+
+                UpdateUiState.UpToDate ->
+                    Text("已是最新版本", style = MaterialTheme.typography.bodyMedium)
+
+                is UpdateUiState.Available -> {
+                    val m = state.manifest
+                    if (state.fromAuto && !expanded) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("发现新版本 v${m.versionName}", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.weight(1f))
+                            TextButton(onClick = { expanded = true }) { Text("查看") }
+                        }
+                    } else {
+                        Text(
+                            "发现新版本 v${m.versionName}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        m.changelog.forEach { line ->
+                            Text("• $line", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = vm::download, modifier = Modifier.fillMaxWidth()) { Text("下载并更新") }
+                    }
+                }
+
+                is UpdateUiState.Downloading -> {
+                    Text(
+                        "Downloading ${(state.progress * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
+                    TextButton(onClick = vm::cancelDownload) { Text("取消") }
+                }
+
+                is UpdateUiState.Ready -> {
+                    Text("更新包已就绪 v${state.manifest.versionName}", style = MaterialTheme.typography.bodyMedium)
+                    if (state.permissionHint) {
+                        Text(
+                            "请允许“Codex Quota”安装未知应用",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = vm::install,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (state.permissionHint) "去授权后继续" else "安装更新") }
+                }
+
+                is UpdateUiState.Error -> {
+                    Text(state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = vm::retry) { Text("重试") }
+                }
+            }
         }
     }
 }
