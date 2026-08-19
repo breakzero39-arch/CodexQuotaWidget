@@ -69,7 +69,15 @@ class WidgetConfigActivity : ComponentActivity() {
         Thread {
             try {
                 runBlocking {
-                    (application as QuotaApp).container.store.bindWidget(appWidgetId, accountId)
+                    val container = (application as QuotaApp).container
+                    container.store.bindWidget(appWidgetId, accountId)
+                    // Sync quota before rendering so a freshly bound card never sits on the
+                    // empty "—" placeholder (which reads like the disconnected "--").
+                    try {
+                        container.repository.refresh(accountId)
+                    } catch (_: Exception) {
+                        // keep last cached quota; the card still renders bound
+                    }
                     // A tap-launched config has no launcher host to re-render the widget on bind;
                     // the launcher flow triggers its own update, so this extra render is harmless.
                     WidgetSync.updateForAccount(applicationContext, accountId)

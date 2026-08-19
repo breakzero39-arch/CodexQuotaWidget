@@ -24,7 +24,9 @@
 
         <activity
             android:name=".ui.WidgetConfigActivity"
-            android:exported="true" />
+            android:exported="true"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
 
         <receiver
             android:name=".widget.CodexQuotaWidgetReceiver"
