@@ -1,0 +1,26 @@
+# --- Gradle / Android generated ---
+.gradle/
+.kotlin/
+build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# --- Local machine paths ---
+local.properties
+
+# --- IDE ---
+.idea/
+*.iml
+
+# --- Dev/debug artifacts (project root) ---
+*.apk
+*.log
+*.png
+*.jpg
+*.jpeg
+*.py
+*.ps1
+ui*.xml
+preview/

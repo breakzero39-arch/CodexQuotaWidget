@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Breathing Live dot: the host (launcher) animates the size cycle automatically,
+     no widget update budget consumed. Shown only when quota is LOW/CRITICAL. -->
+<ViewFlipper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/live_dot_flipper"
+    android:layout_width="12dp"
+    android:layout_height="12dp"
+    android:autoStart="true"
+    android:flipInterval="750"
+    android:inAnimation="@android:anim/fade_in"
+    android:outAnimation="@android:anim/fade_out">
+
+    <TextView
+        android:layout_width="6dp"
+        android:layout_height="6dp"
+        android:layout_gravity="center"
+        android:background="@drawable/widget_dot_green" />
+
+    <TextView
+        android:layout_width="9dp"
+        android:layout_height="9dp"
+        android:layout_gravity="center"
+        android:background="@drawable/widget_dot_green" />
+
+    <TextView
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:layout_gravity="center"
+        android:background="@drawable/widget_dot_green" />
+</ViewFlipper>
