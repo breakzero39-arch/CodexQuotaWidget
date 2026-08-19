@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "1.2.0",
-  "apkUrl": "https://github.com/breakzero39-arch/CodexQuotaWidget/releases/download/v1.2.0/CodexQuota-v1.2.0.apk",
-  "sha256": "283171a748d85b18c3e5a0a22f33e4a5c45756b191efbd5c7dfd58256f109384",
-  "changelog": ["首个通过应用内更新发布的版本"]
+  "versionCode": 4,
+  "versionName": "1.2.1",
+  "apkUrl": "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.2.1.apk",
+  "sha256": "57095c3cdd6fc5a779140eb1bdfa8f1a421acbdd503365172583c0c6ec813683",
+  "changelog": ["更新源切换至 jsDelivr CDN，国内直连不再卡"]
 }

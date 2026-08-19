@@ -21,7 +21,9 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BuildFile = Join-Path $Root 'app\build.gradle.kts'
 $ReleaseDir = Join-Path $Root 'release'
 $Repo = 'breakzero39-arch/CodexQuotaWidget'
-$apkUrl = "https://github.com/$Repo/releases/download/v$VersionName/CodexQuota-v$VersionName.apk"
+# APK is served from the repo via jsDelivr CDN (China-reachable). Must be committed with
+# `git add -f release/CodexQuota-v<ver>.apk` before the manifest is fetched by installed apps.
+$apkUrl = "https://cdn.jsdelivr.net/gh/$Repo@main/release/CodexQuota-v$VersionName.apk"
 
 # ---------- 1. read + bump version ----------
 $content = [System.IO.File]::ReadAllText($BuildFile)
@@ -135,6 +137,9 @@ if (Get-Command gh -ErrorAction SilentlyContinue) {
 }
 
 Write-Host ""
-Write-Host "Done. Commit release/latest.json so installed apps can see this update."
+Write-Host "Done. Commit these BEFORE installed apps can fetch the update:"
+Write-Host "  git add -f release/CodexQuota-v$VersionName.apk"
+Write-Host "  git rm --ignore-unmatch release/CodexQuota-v*.apk (previous release, keeps repo small)"
+Write-Host "  git add release/latest.json && git commit && git push"
 Write-Host "Release:  $renamed"
 Write-Host "Manifest: $(Join-Path $ReleaseDir 'latest.json')"

@@ -58,8 +58,10 @@ class UpdateRepository(
     companion object {
         // The single fixed manifest URL. latest.json lives in the public repo at this exact path,
         // so the app always requests the same address and the apkUrl inside carries the new build.
+        // Served via jsDelivr CDN: raw.githubusercontent.com is unreachable from mainland China,
+        // but jsDelivr mirrors the repo and is reachable.
         const val UPDATE_URL =
-            "https://raw.githubusercontent.com/breakzero39-arch/CodexQuotaWidget/main/release/latest.json"
+            "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/latest.json"
         const val AUTO_CHECK_INTERVAL_MS = 12L * 60 * 60 * 1000
         private const val KEY_LAST_CHECK = "last_check"
     }
