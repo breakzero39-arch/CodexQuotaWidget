@@ -8,7 +8,7 @@
     android:maxResizeHeight="250dp"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
-    android:updatePeriodMillis="0"
+    android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/codex_quota_loading"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"

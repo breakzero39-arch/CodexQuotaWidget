@@ -1,8 +1,10 @@
 package com.codex.quota.work
 
 import android.content.Context
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -17,7 +19,12 @@ object QuotaRefreshScheduler {
     private const val ACCOUNT_WORK_PREFIX = "codex_refresh_account_"
 
     fun start(context: Context) {
-        val periodic = PeriodicWorkRequestBuilder<RefreshAllAccountsWorker>(30, TimeUnit.MINUTES).build()
+        // Backup to the system-driven updatePeriodMillis tick: a WorkManager periodic job is
+        // the fallback on stock devices / Doze maintenance windows. Connected constraint means
+        // an offline window just waits instead of burning battery on doomed fetches.
+        val periodic = PeriodicWorkRequestBuilder<RefreshAllAccountsWorker>(30, TimeUnit.MINUTES)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .build()
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             PERIODIC_WORK,
             ExistingPeriodicWorkPolicy.UPDATE,
