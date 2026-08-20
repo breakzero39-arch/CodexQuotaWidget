@@ -1,6 +1,5 @@
 package com.codex.quota.widget
 
-import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -24,7 +23,6 @@ import androidx.glance.ImageProvider
 import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.appwidget.AppWidgetId
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.action.actionSendBroadcast
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -47,7 +45,6 @@ import androidx.glance.unit.ColorProvider
 import com.codex.quota.QuotaApp
 import com.codex.quota.R
 import com.codex.quota.data.BonusQuota
-import com.codex.quota.ui.WidgetConfigActivity
 import com.codex.quota.data.CodexQuota
 import com.codex.quota.data.QuotaState
 import com.codex.quota.data.state
@@ -78,8 +75,7 @@ class CodexQuotaWidget : GlanceAppWidget() {
                 quota = quota,
                 sessionExpired = sessionExpired,
                 displayName = account?.displayName,
-                accountBound = accountId != null,
-                appWidgetId = appWidgetId
+                accountBound = accountId != null
             )
         }
     }
@@ -90,27 +86,14 @@ internal fun CodexQuotaWidgetContent(
     quota: CodexQuota?,
     sessionExpired: Boolean,
     displayName: String?,
-    accountBound: Boolean,
-    appWidgetId: Int
+    accountBound: Boolean
 ) {
     val size = LocalSize.current
     // 4x2 is ~155dp tall on this launcher; treat anything below 4x3 as compact so the
     // multi-line ExpandedBody never clips off the bottom of the card.
     val compact = size.height < 190.dp
-    val onClick = if (accountBound) {
-        actionSendBroadcast(
-            Intent(LocalContext.current, RefreshReceiver::class.java)
-                .putExtra(RefreshReceiver.EXTRA_APPWIDGET_ID, appWidgetId)
-        )
-    } else if (appWidgetId != android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID) {
-        // Unbound widget → straight to the account picker for THIS widget, so picking binds it.
-        actionStartActivity(
-            Intent(LocalContext.current, WidgetConfigActivity::class.java)
-                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        )
-    } else {
-        actionStartActivity(Intent(LocalContext.current, MainActivity::class.java))
-    }
+    // Tap → open the app. Refresh lives in the app ("Refresh All") and the periodic worker.
+    val onClick = actionStartActivity(Intent(LocalContext.current, MainActivity::class.java))
     QuotaCard(
         quota = quota,
         sessionExpired = sessionExpired,

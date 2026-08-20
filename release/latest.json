@@ -1,10 +1,9 @@
 {
-    "versionCode":  6,
-    "versionName":  "1.2.3",
-    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.2.3.apk",
-    "sha256":  "0ddf1f3f282fbd8618d2a2bfb93dedcc5d6e52f44b44806002582ec35751c6b8",
+    "versionCode":  7,
+    "versionName":  "1.2.4",
+    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.2.4.apk",
+    "sha256":  "f892f031c92b8a67539d64c3f67fdb1e84786bc8a9f479682a47d8118de42b08",
     "changelog":  [
-                      "绑定账号后立即同步额度",
-                      "选完账号直接返回桌面不弹主应用"
+                      "点击小组件直接进入应用"
                   ]
 }
