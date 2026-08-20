@@ -17,6 +17,8 @@ object QuotaRefreshScheduler {
     private const val PERIODIC_WORK = "codex_quota_periodic_v2"
     private const val ALL_WORK = "codex_refresh_all"
     private const val ACCOUNT_WORK_PREFIX = "codex_refresh_account_"
+    private const val KEY_LAST_ALL = "last_refresh_all_ms"
+    private const val MIN_FETCH_GAP_MS = 5L * 60 * 1000
 
     fun start(context: Context) {
         // Backup to the system-driven updatePeriodMillis tick: a WorkManager periodic job is
@@ -33,9 +35,23 @@ object QuotaRefreshScheduler {
         refreshAll(context)
     }
 
+    /**
+     * Refresh every account, but never more than once per [MIN_FETCH_GAP_MS].
+     *
+     * The system fires APPWIDGET_UPDATE on its own schedule and launchers repaint widgets far
+     * more often than quota actually changes; without a floor, every such tick would hit the
+     * Codex API (observed as the card updating every ~10s). Rendering is unaffected — the widget
+     * receivers render the current DataStore first, so a skipped fetch just repaints the latest
+     * known value. Explicit widget-tap refreshes bypass this (RefreshAccountWorker).
+     */
     fun refreshAll(context: Context) {
+        val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences("refresh_throttle", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        if (now - prefs.getLong(KEY_LAST_ALL, 0L) < MIN_FETCH_GAP_MS) return
+        prefs.edit().putLong(KEY_LAST_ALL, now).apply()
         val one = OneTimeWorkRequestBuilder<RefreshAllAccountsWorker>().build()
-        WorkManager.getInstance(context).enqueueUniqueWork(ALL_WORK, ExistingWorkPolicy.KEEP, one)
+        WorkManager.getInstance(appContext).enqueueUniqueWork(ALL_WORK, ExistingWorkPolicy.KEEP, one)
     }
 
     fun refreshAccount(context: Context, accountId: String) {
