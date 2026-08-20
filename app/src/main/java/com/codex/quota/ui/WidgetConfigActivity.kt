@@ -1,5 +1,6 @@
 package com.codex.quota.ui
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
@@ -13,7 +14,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
-import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.AppWidgetId
 import com.codex.quota.QuotaApp
 import com.codex.quota.data.AccountData
 import com.codex.quota.widget.CodexQuotaWidget
@@ -98,22 +99,29 @@ class WidgetConfigActivity : ComponentActivity() {
         }.start()
     }
 
-    /** Re-render [appWidgetId] once the launcher has bound it, retrying until it is real. */
+    /**
+     * Re-render [appWidgetId] after the launcher has placed it. Uses the same per-id update the
+     * system's own onUpdate performs: update(AppWidgetId) renders straight through SessionManager
+     * and pushes RemoteViews without needing the widget registered in AppWidgetManager — unlike
+     * getGlanceIdBy(), whose getAppWidgetInfo() check returns null for a fresh config-added widget
+     * until the launcher binds it after RESULT_OK. (That was the silent failure: the first bind
+     * stayed on the drag-time "Account disconnected" render until a second bind re-triggered the
+     * system's onUpdate.) Renders a few times over a few seconds so the placement window is always
+     * covered; the render is a cheap no-op while the widget is not yet placed, and idempotent.
+     */
+    @SuppressLint("RestrictedApi")
     private fun scheduleBoundRender() {
-        val manager = GlanceAppWidgetManager(applicationContext)
+        val widget = CodexQuotaWidget()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         scope.launch {
-            delay(400) // let the launcher bind the widget after RESULT_OK
-            repeat(12) { attempt ->
-                val rendered = try {
-                    val glanceId = manager.getGlanceIdBy(appWidgetId)
-                    CodexQuotaWidget().update(applicationContext, glanceId)
-                    true
+            delay(300) // let the launcher place the widget after RESULT_OK
+            repeat(6) { attempt ->
+                try {
+                    widget.update(applicationContext, AppWidgetId(appWidgetId))
                 } catch (_: Throwable) {
-                    false
+                    // keep trying; the render no-ops while the widget is not yet placed
                 }
-                if (rendered) return@launch
-                if (attempt < 11) delay(500)
+                delay(500 + attempt * 250L) // renders at ~0.3s … ~5.3s, last one lands after placement
             }
         }
     }

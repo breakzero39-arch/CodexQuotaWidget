@@ -1,9 +1,9 @@
 {
-    "versionCode":  12,
-    "versionName":  "1.3.4",
-    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.3.4.apk",
-    "sha256":  "f31ac3ac339ff7799cb5af32cb1b80b7f8818b9ed6e8c6ced879311b3fae6b7b",
+    "versionCode":  13,
+    "versionName":  "1.3.5",
+    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.3.5.apk",
+    "sha256":  "f750fb9d3d82c49d60f1df6977bf6e57d892546a5948667496a136ae66af8a49",
     "changelog":  [
-                      "修复:首次添加组件选择账号后仍显示 disconnected(改为桌面绑定完成后重绘)"
+                      "修复:首次绑定改用系统同款渲染路径(AppWidgetId 直连 update),不再依赖 getAppWidgetInfo 校验"
                   ]
 }
