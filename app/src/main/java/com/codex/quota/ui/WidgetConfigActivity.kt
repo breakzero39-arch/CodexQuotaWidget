@@ -13,9 +13,10 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import com.codex.quota.QuotaApp
 import com.codex.quota.data.AccountData
-import com.codex.quota.work.WidgetSync
+import com.codex.quota.widget.CodexQuotaWidget
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -78,9 +79,13 @@ class WidgetConfigActivity : ComponentActivity() {
                     } catch (_: Exception) {
                         // keep last cached quota; the card still renders bound
                     }
-                    // A tap-launched config has no launcher host to re-render the widget on bind;
-                    // the launcher flow triggers its own update, so this extra render is harmless.
-                    WidgetSync.updateForAccount(applicationContext, accountId)
+                    // Render the exact widget being bound. Glance's getGlanceIds() reads an
+                    // internally-registered provider list that fills in lazily, so it can miss a
+                    // just-added instance — which made the first bind appear dead until a second
+                    // pick. getGlanceIdBy() resolves straight from AppWidgetManager (the launcher
+                    // already registered this id), so this first bind always takes effect.
+                    val glanceId = GlanceAppWidgetManager(applicationContext).getGlanceIdBy(appWidgetId)
+                    CodexQuotaWidget().update(applicationContext, glanceId)
                 }
             } catch (t: Throwable) {
                 // binding failed → widget still added, shows "Account disconnected"
