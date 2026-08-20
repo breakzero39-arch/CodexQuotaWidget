@@ -3,7 +3,6 @@ package com.codex.quota.data.update
 import android.content.Context
 import android.content.SharedPreferences
 import com.codex.quota.BuildConfig
-import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -30,24 +29,27 @@ class UpdateRepository(
 
     /** null on any network/parse failure — never propagate an exception to the quota side. */
     suspend fun check(): UpdateCheck? = withContext(Dispatchers.IO) {
-        try {
-            // Query-string cache-bust: jsDelivr's purge is asynchronous, so a shared cache can
-            // keep serving the old latest.json long after we purge — which reads as "no update".
-            // A unique ?t= makes every check a new cache key that hits the origin (GitHub) fresh.
-            val req = Request.Builder()
-                .url(UPDATE_URL + "?t=" + System.currentTimeMillis())
-                .build()
-            val body = http.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) null else resp.body?.string()
-            } ?: return@withContext null
-            val manifest = UpdateManifest.parse(body) ?: return@withContext null
-            if (manifest.versionCode > BuildConfig.VERSION_CODE) UpdateCheck.Available(manifest)
-            else UpdateCheck.UpToDate
-        } catch (_: IOException) {
-            null
-        } catch (_: Exception) {
-            null
+        // jsDelivr caches @main branch refs for days and its branch-ref purge is unreliable
+        // (it served a stale latest.json today even right after purging), so hit the uncached
+        // raw GitHub source first — it always reflects the true pushed repo state. Only when
+        // raw is unreachable (some mainland-CN networks block it) fall back to the CDN.
+        for (url in listOf(RAW_UPDATE_URL, UPDATE_URL)) {
+            val manifest = try {
+                val body = http.newCall(Request.Builder().url(url).build()).execute().use { resp ->
+                    if (!resp.isSuccessful) null else resp.body?.string()
+                } ?: continue
+                UpdateManifest.parse(body)
+            } catch (_: Exception) {
+                continue
+            }
+            if (manifest != null) {
+                return@withContext when {
+                    manifest.versionCode > BuildConfig.VERSION_CODE -> UpdateCheck.Available(manifest)
+                    else -> UpdateCheck.UpToDate
+                }
+            }
         }
+        null
     }
 
     fun lastCheckMillis(): Long = prefs.getLong(KEY_LAST_CHECK, 0L)
@@ -61,10 +63,13 @@ class UpdateRepository(
         System.currentTimeMillis() - lastCheckMillis() >= AUTO_CHECK_INTERVAL_MS
 
     companion object {
-        // The single fixed manifest URL. latest.json lives in the public repo at this exact path,
-        // so the app always requests the same address and the apkUrl inside carries the new build.
-        // Served via jsDelivr CDN: raw.githubusercontent.com is unreachable from mainland China,
-        // but jsDelivr mirrors the repo and is reachable.
+        // Raw GitHub is uncached and always reflects the pushed repo state — no CDN to go stale.
+        // jsDelivr ignores query-string cache-busting, so this is the only reliable source for a
+        // manifest that changes at a fixed path.
+        const val RAW_UPDATE_URL =
+            "https://raw.githubusercontent.com/breakzero39-arch/CodexQuotaWidget/main/release/latest.json"
+        // China-reachable fallback. NOTE: @main branch refs can serve a stale manifest for days
+        // (purge unreliable, 7-day TTL); used only when raw is unreachable.
         const val UPDATE_URL =
             "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/latest.json"
         const val AUTO_CHECK_INTERVAL_MS = 12L * 60 * 60 * 1000

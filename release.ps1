@@ -143,3 +143,15 @@ Write-Host "  git rm --ignore-unmatch release/CodexQuota-v*.apk (previous releas
 Write-Host "  git add release/latest.json && git commit && git push"
 Write-Host "Release:  $renamed"
 Write-Host "Manifest: $(Join-Path $ReleaseDir 'latest.json')"
+
+# ---------- 8. purge jsDelivr (run AFTER the commit+push above) ----------
+# jsDelivr caches @main aggressively and the POST purge API silently no-ops for branch
+# refs. The GET form (cdn.jsdelivr.net -> purge.jsdelivr.net) returns 200 and reliably
+# invalidates — verified 2026-08-20. Run after git push; purging is always idempotent.
+Write-Host "`nPurge jsDelivr after pushing (safe to re-run):"
+foreach ($p in @(
+    "https://purge.jsdelivr.net/gh/$Repo@main/release/latest.json",
+    "https://purge.jsdelivr.net/gh/$Repo@main/release/CodexQuota-v$VersionName.apk"
+)) {
+    Write-Host "  curl -s -o /dev/null -w '%{http_code}' `"$p`""
+}
