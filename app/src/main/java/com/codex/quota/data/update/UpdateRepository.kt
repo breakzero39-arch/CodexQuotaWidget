@@ -31,7 +31,12 @@ class UpdateRepository(
     /** null on any network/parse failure — never propagate an exception to the quota side. */
     suspend fun check(): UpdateCheck? = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder().url(UPDATE_URL).build()
+            // Query-string cache-bust: jsDelivr's purge is asynchronous, so a shared cache can
+            // keep serving the old latest.json long after we purge — which reads as "no update".
+            // A unique ?t= makes every check a new cache key that hits the origin (GitHub) fresh.
+            val req = Request.Builder()
+                .url(UPDATE_URL + "?t=" + System.currentTimeMillis())
+                .build()
             val body = http.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) null else resp.body?.string()
             } ?: return@withContext null
