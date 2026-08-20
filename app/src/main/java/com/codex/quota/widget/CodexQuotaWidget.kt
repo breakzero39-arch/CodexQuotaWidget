@@ -107,9 +107,14 @@ internal fun CodexQuotaWidgetContent(
     // A true 2x2 cell is roughly square and far narrower than the 4x2 (~250dp+). Judge by
     // measured width+height, never by widget size, so launcher differences just work.
     val is2x2 = size.width < 200.dp && size.height < 200.dp
-    // Bound widget → refresh just that account; unbound but known id → account picker so
-    // picking binds THIS widget; unknown id → open the app.
-    val onClick = if (accountBound) {
+    // 2×2 is a glance-only card: tap always opens the app. A refresh/bind tap on a 48dp cell
+    // reads as "nothing happened" and there's no room for in-card affordances; the app is the
+    // whole point of a card this small. 4×2 keeps refresh (bound) / account picker (unbound).
+    val onClick = if (is2x2) {
+        actionStartActivity(Intent(LocalContext.current, MainActivity::class.java))
+    } else if (accountBound) {
+        // Bound widget → refresh just that account; unbound but known id → account picker so
+        // picking binds THIS widget; unknown id → open the app.
         actionSendBroadcast(
             Intent(LocalContext.current, RefreshReceiver::class.java)
                 .putExtra(RefreshReceiver.EXTRA_APPWIDGET_ID, appWidgetId)
