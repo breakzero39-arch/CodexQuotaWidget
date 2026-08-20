@@ -44,7 +44,7 @@ data class LoginUiState(
         get() = when (state) {
             LoginState.CONNECTED -> "刷新额度"
             LoginState.DISCONNECTED -> "连接 ChatGPT"
-            LoginState.CODE_EXPIRED -> "重新连接"
+            LoginState.CODE_EXPIRED -> "重新生成验证码"
             LoginState.LOGIN_FAILED -> "重试登录"
             LoginState.WAITING_FOR_AUTH -> "重新生成验证码"
             LoginState.CONNECTING -> "连接中…"
@@ -69,6 +69,16 @@ class AccountsViewModel(application: Application) : AndroidViewModel(application
 
     private val _login = MutableStateFlow(LoginUiState())
     val login: StateFlow<LoginUiState> = _login
+
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing
+
+    private val _snackbar = MutableStateFlow<String?>(null)
+    val snackbar: StateFlow<String?> = _snackbar
+
+    fun consumeSnackbar() {
+        _snackbar.value = null
+    }
 
     private var loginJob: Job? = null
 
@@ -112,15 +122,30 @@ class AccountsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshAll() {
+        if (_refreshing.value) return
         viewModelScope.launch {
-            for (accountId in container.store.connectedAccountIds()) {
-                try {
-                    container.repository.refresh(accountId)
-                } catch (_: Exception) {
-                    // keep last-good data; never block the other accounts
+            _refreshing.value = true
+            try {
+                val ids = container.store.connectedAccountIds()
+                var ok = 0
+                for (accountId in ids) {
+                    try {
+                        container.repository.refresh(accountId)
+                        ok++
+                    } catch (_: Exception) {
+                        // keep last-good data; never block the other accounts
+                    }
                 }
+                CodexQuotaWidget().updateAll(getApplication())
+                _snackbar.value = when {
+                    ids.isEmpty() -> null
+                    ok == ids.size -> "已刷新"
+                    ok == 0 -> "刷新失败"
+                    else -> "${ok} 个账号已刷新，${ids.size - ok} 个失败"
+                }
+            } finally {
+                _refreshing.value = false
             }
-            CodexQuotaWidget().updateAll(getApplication())
         }
     }
 

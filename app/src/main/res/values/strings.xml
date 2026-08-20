@@ -3,4 +3,6 @@
     <string name="app_name">Codex Quota</string>
     <string name="widget_name">Codex Quota</string>
     <string name="widget_description">显示 Codex 剩余额度与重置倒计时</string>
+    <string name="widget_name_2x2">Codex Quota 2×2</string>
+    <string name="widget_description_2x2">2×2 小组件：Codex 剩余额度与重置倒计时</string>
 </resources>

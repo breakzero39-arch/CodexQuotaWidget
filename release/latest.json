@@ -1,9 +1,13 @@
 {
-    "versionCode":  7,
-    "versionName":  "1.2.4",
-    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.2.4.apk",
-    "sha256":  "f892f031c92b8a67539d64c3f67fdb1e84786bc8a9f479682a47d8118de42b08",
+    "versionCode":  8,
+    "versionName":  "1.3.0",
+    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.3.0.apk",
+    "sha256":  "dc17fe51e941a2cc666cb1a7389c126f89d3cde600372611947b726c34a1bcda",
     "changelog":  [
-                      "点击小组件直接进入应用"
+                      "刷新交互优化：旋转图标 + 轻量反馈",
+                      "账号卡片三态 Live/Stale/Reconnect",
+                      "重连/删除交互与二次确认",
+                      "新增 2×2 小组件",
+                      "修复未绑定小组件点击跳转"
                   ]
 }
