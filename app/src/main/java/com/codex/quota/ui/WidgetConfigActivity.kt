@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.ViewGroup
@@ -25,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Widget configure activity (launched by the launcher when a Codex Quota widget is added).
@@ -52,7 +54,18 @@ class WidgetConfigActivity : ComponentActivity() {
 
         Thread {
             val accounts = try {
-                runBlocking { (application as QuotaApp).container.store.accountData.first() }
+                runBlocking {
+                    val store = (application as QuotaApp).container.store
+                    // A freshly-started process can still be reading the DataStore file when this
+                    // opens; a single first() snapshot can return the pre-load empty list even
+                    // though an account exists. That routed the first config to the "no account"
+                    // screen and the widget was added with no binding (the "Account disconnected"
+                    // first card). Wait for a non-empty emission (the loaded value), falling back
+                    // after a few seconds so a genuinely empty store still shows the empty prompt.
+                    withTimeoutOrNull(5000) {
+                        store.accountData.first { it.isNotEmpty() }
+                    } ?: store.accountData.first()
+                }
             } catch (t: Throwable) {
                 emptyList()
             }
@@ -73,6 +86,7 @@ class WidgetConfigActivity : ComponentActivity() {
     }
 
     private fun bindAndFinish(accountId: String) {
+        Log.d(TAG, "bindAndFinish appWidgetId=$appWidgetId account=$accountId")
         Thread {
             try {
                 runBlocking {
@@ -86,8 +100,10 @@ class WidgetConfigActivity : ComponentActivity() {
                         // keep last cached quota; the card still renders bound
                     }
                 }
+                Log.d(TAG, "bind committed appWidgetId=$appWidgetId")
             } catch (t: Throwable) {
                 // binding failed → widget still added, shows "Account disconnected"
+                Log.e(TAG, "bind failed appWidgetId=$appWidgetId: $t")
             }
             // Render the freshly bound widget. A just-added widget is NOT yet bound in
             // AppWidgetManager while this config activity is on screen — the launcher binds it
@@ -118,8 +134,10 @@ class WidgetConfigActivity : ComponentActivity() {
             repeat(6) { attempt ->
                 try {
                     widget.update(applicationContext, AppWidgetId(appWidgetId))
-                } catch (_: Throwable) {
+                    Log.d(TAG, "render attempt=$attempt appWidgetId=$appWidgetId OK")
+                } catch (t: Throwable) {
                     // keep trying; the render no-ops while the widget is not yet placed
+                    Log.d(TAG, "render attempt=$attempt appWidgetId=$appWidgetId failed: $t")
                 }
                 delay(500 + attempt * 250L) // renders at ~0.3s … ~5.3s, last one lands after placement
             }
@@ -188,5 +206,9 @@ class WidgetConfigActivity : ComponentActivity() {
             )
         }
         return ScrollView(this).apply { addView(column) }
+    }
+
+    companion object {
+        private const val TAG = "WidgetConfig"
     }
 }

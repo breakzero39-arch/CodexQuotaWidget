@@ -9,6 +9,8 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.widget.RemoteViews
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
@@ -70,22 +72,20 @@ class CodexQuotaWidget : GlanceAppWidget() {
     @SuppressLint("RestrictedApi")
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val store = (context.applicationContext as QuotaApp).container.store
-        // Any failure here would leave the widget on the (empty) loading placeholder forever,
-        // so every read is guarded — the worst case renders the visible disconnected card.
+        // The render is driven reactively: widgetState() is a DataStore-backed flow that re-emits
+        // on any change (binding, quota refresh, session expiry), so a widget bound in the config
+        // recomposes to show account data immediately. Reading the snapshot once (the old code)
+        // froze the unbound "Account disconnected" render for the session's whole lifetime (~45s,
+        // update() does not restart provideGlance) even after the user picked an account.
         val appWidgetId = runCatching { (id as AppWidgetId).appWidgetId }
             .getOrDefault(android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID)
-        val accountId = if (appWidgetId != android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID) {
-            runCatching { store.accountForWidget(appWidgetId) }.getOrNull()
-        } else null
-        val account = accountId?.let { runCatching { store.accountNow(it) }.getOrNull() }
-        val quota = accountId?.let { runCatching { store.currentQuota(it) }.getOrNull() }?.toQuota()
-        val sessionExpired = accountId?.let { runCatching { store.sessionExpiredNow(it) }.getOrDefault(true) } ?: true
         provideContent {
+            val state by store.widgetState(appWidgetId).collectAsState(null)
             CodexQuotaWidgetContent(
-                quota = quota,
-                sessionExpired = sessionExpired,
-                displayName = account?.displayName,
-                accountBound = accountId != null,
+                quota = state?.quota?.toQuota(),
+                sessionExpired = state?.sessionExpired ?: true,
+                displayName = state?.displayName,
+                accountBound = state?.accountId != null,
                 appWidgetId = appWidgetId
             )
         }

@@ -139,6 +139,23 @@ class AccountStore(private val context: Context) {
     suspend fun accountForWidget(appWidgetId: Int): String? =
         context.codexAccountsDataStore.data.first()[Keys.widget(appWidgetId)]
 
+    /**
+     * Reactive snapshot of everything a widget needs to render, re-emitted on any DataStore change
+     * (binding, quota refresh, session expiry). Collecting this inside the Glance composition lets
+     * a just-bound widget recompose to account data without waiting for its session to restart.
+     */
+    fun widgetState(appWidgetId: Int): Flow<WidgetState> =
+        context.codexAccountsDataStore.data.map { prefs ->
+            val accountId = prefs[Keys.widget(appWidgetId)]
+            val account = accountId?.let { prefs.account(it) }
+            WidgetState(
+                accountId = accountId,
+                displayName = account?.displayName,
+                sessionExpired = accountId?.let { prefs[Keys.sessionExpired(it)] } ?: true,
+                quota = accountId?.let { prefs.quota(it) }
+            )
+        }
+
     // ---------- per-snapshot readers ----------
 
     private fun Preferences.account(id: String): CodexAccount = CodexAccount(

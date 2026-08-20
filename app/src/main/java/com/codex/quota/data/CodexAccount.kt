@@ -34,3 +34,11 @@ data class AccountData(
     val quota: AccountQuota?,
     val sessionExpired: Boolean
 )
+
+/** Everything a single widget needs to render, derived from one DataStore snapshot. */
+data class WidgetState(
+    val accountId: String?,
+    val displayName: String?,
+    val sessionExpired: Boolean,
+    val quota: AccountQuota?
+)
