@@ -17,7 +17,12 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import com.codex.quota.QuotaApp
 import com.codex.quota.data.AccountData
 import com.codex.quota.widget.CodexQuotaWidget
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -79,19 +84,38 @@ class WidgetConfigActivity : ComponentActivity() {
                     } catch (_: Exception) {
                         // keep last cached quota; the card still renders bound
                     }
-                    // Render the exact widget being bound. Glance's getGlanceIds() reads an
-                    // internally-registered provider list that fills in lazily, so it can miss a
-                    // just-added instance — which made the first bind appear dead until a second
-                    // pick. getGlanceIdBy() resolves straight from AppWidgetManager (the launcher
-                    // already registered this id), so this first bind always takes effect.
-                    val glanceId = GlanceAppWidgetManager(applicationContext).getGlanceIdBy(appWidgetId)
-                    CodexQuotaWidget().update(applicationContext, glanceId)
                 }
             } catch (t: Throwable) {
                 // binding failed → widget still added, shows "Account disconnected"
             }
+            // Render the freshly bound widget. A just-added widget is NOT yet bound in
+            // AppWidgetManager while this config activity is on screen — the launcher binds it
+            // only after we return RESULT_OK — so a direct render here throws on the first add
+            // (the old code swallowed that, which is why the first bind looked dead until a
+            // second pick). Poll briefly after finish until the launcher has bound + placed it.
+            scheduleBoundRender()
             runOnUiThread { resultOk() }
         }.start()
+    }
+
+    /** Re-render [appWidgetId] once the launcher has bound it, retrying until it is real. */
+    private fun scheduleBoundRender() {
+        val manager = GlanceAppWidgetManager(applicationContext)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        scope.launch {
+            delay(400) // let the launcher bind the widget after RESULT_OK
+            repeat(12) { attempt ->
+                val rendered = try {
+                    val glanceId = manager.getGlanceIdBy(appWidgetId)
+                    CodexQuotaWidget().update(applicationContext, glanceId)
+                    true
+                } catch (_: Throwable) {
+                    false
+                }
+                if (rendered) return@launch
+                if (attempt < 11) delay(500)
+            }
+        }
     }
 
     private fun resultOk() {

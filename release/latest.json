@@ -1,9 +1,9 @@
 {
-    "versionCode":  11,
-    "versionName":  "1.3.3",
-    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.3.3.apk",
-    "sha256":  "fe0113841bbbddbeb4b1dcf51fe39f7d87e2c232cb165f2fb504a302f0f04a65",
+    "versionCode":  12,
+    "versionName":  "1.3.4",
+    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.3.4.apk",
+    "sha256":  "f31ac3ac339ff7799cb5af32cb1b80b7f8818b9ed6e8c6ced879311b3fae6b7b",
     "changelog":  [
-                      "修复更新检查:改用 GitHub 直连源,避免 jsDelivr 缓存导致一直检测不到新版本"
+                      "修复:首次添加组件选择账号后仍显示 disconnected(改为桌面绑定完成后重绘)"
                   ]
 }
