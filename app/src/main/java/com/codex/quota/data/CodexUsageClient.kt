@@ -15,7 +15,7 @@ import org.json.JSONObject
  */
 class CodexUsageClient(private val http: OkHttpClient) {
 
-    suspend fun fetchUsage(tokens: CodexTokens): CodexQuota = withContext(Dispatchers.IO) {
+    suspend fun fetchUsage(tokens: CodexTokens): QuotaSnapshot = withContext(Dispatchers.IO) {
         val req = Request.Builder()
             .url("https://chatgpt.com/backend-api/wham/usage")
             .header("Authorization", "Bearer ${tokens.accessToken}")
@@ -37,38 +37,36 @@ class CodexUsageClient(private val http: OkHttpClient) {
         }
     }
 
-    private fun parse(body: String): CodexQuota {
+    private fun parse(body: String): QuotaSnapshot {
         val root = try {
             JSONObject(body)
         } catch (e: Exception) {
             throw QuotaException(QuotaError.PARSE, e.message)
         }
         val rateLimit = root.optJSONObject("rate_limit")
-        val primary = rateLimit?.optJSONObject("primary_window")
-        val secondary = rateLimit?.optJSONObject("secondary_window")
+        // primary_window = the 5-hour window, secondary_window = the 7-day window.
+        val fiveHour = rateLimit?.optJSONObject("primary_window").window(WindowType.FIVE_HOUR, FIVE_HOUR_SECONDS)
+        val sevenDay = rateLimit?.optJSONObject("secondary_window").window(WindowType.SEVEN_DAY, SEVEN_DAY_SECONDS)
+        if (fiveHour == null && sevenDay == null) throw QuotaException(QuotaError.PARSE, "no rate-limit windows")
 
-        val pUsed = primary?.usedPercent()
-        val sUsed = secondary?.usedPercent()
-        if (pUsed == null && sUsed == null) throw QuotaException(QuotaError.PARSE, "no rate-limit windows")
+        return QuotaSnapshot(
+            fiveHour = fiveHour,
+            sevenDay = sevenDay,
+            bonus = root.bonus(),
+            updatedAt = Instant.now()
+        )
+    }
 
-        // Both windows are enforced simultaneously; the binding constraint is the more-used one.
-        val used = listOfNotNull(pUsed, sUsed).max()
-        val remaining = (100.0 - used).coerceIn(0.0, 100.0).toFloat()
-
-        val binding = when {
-            pUsed == null -> secondary!!
-            sUsed == null -> primary!!
-            pUsed >= sUsed -> primary!! else -> secondary!!
-        }
-        val resetAt = binding.resetAt()
-            ?: (if (binding === primary) secondary else primary)?.resetAt()
-            ?: Instant.now().plusSeconds(binding.limitWindowSeconds())
-
-        return CodexQuota(
-            remainingPercent = remaining,
-            resetAt = resetAt,
-            updatedAt = Instant.now(),
-            bonus = root.bonus()
+    /** Builds one rolling window; null when the JSON object is absent or has no used_percent. */
+    private fun JSONObject?.window(type: WindowType, defaultSeconds: Long): QuotaWindow? {
+        this ?: return null
+        val used = usedPercent() ?: return null
+        val reset = resetAt() ?: Instant.now().plusSeconds(limitWindowSeconds(defaultSeconds))
+        return QuotaWindow(
+            remainingPercent = (100.0 - used).coerceIn(0.0, 100.0).toFloat(),
+            resetAt = reset,
+            usedPercent = used.toFloat(),
+            windowType = type
         )
     }
 
@@ -81,8 +79,8 @@ class CodexUsageClient(private val http: OkHttpClient) {
         return if (v <= 0) null else epoch(v)
     }
 
-    private fun JSONObject.limitWindowSeconds(): Long =
-        if (has("limit_window_seconds")) optLong("limit_window_seconds", 18000L) else 18000L
+    private fun JSONObject.limitWindowSeconds(default: Long): Long =
+        if (has("limit_window_seconds")) optLong("limit_window_seconds", default) else default
 
     private fun JSONObject.bonus(): BonusQuota? {
         val resetCredits = optJSONObject("rate_limit_reset_credits")
@@ -95,4 +93,9 @@ class CodexUsageClient(private val http: OkHttpClient) {
 
     private fun epoch(value: Long): Instant =
         if (value > 10_000_000_000L) Instant.ofEpochMilli(value) else Instant.ofEpochSecond(value)
+
+    private companion object {
+        const val FIVE_HOUR_SECONDS = 18_000L   // 5h
+        const val SEVEN_DAY_SECONDS = 604_800L  // 7d
+    }
 }

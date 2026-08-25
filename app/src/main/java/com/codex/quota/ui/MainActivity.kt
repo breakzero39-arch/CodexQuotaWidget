@@ -63,6 +63,7 @@ import com.codex.quota.data.auth.CodexOAuthClient
 import com.codex.quota.data.color
 import com.codex.quota.data.label
 import com.codex.quota.data.statusOf
+import com.codex.quota.data.QuotaWindow
 import com.codex.quota.ui.theme.QuotaTheme
 import java.time.Duration
 import java.time.Instant
@@ -227,7 +228,7 @@ private fun AccountCard(
     var menuOpen by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf(false) }
     val name = item.account.displayName ?: "Account"
-    val pct = item.quota?.remainingPercent?.roundToInt()
+    val pct = item.quota?.fiveHour?.remainingPercent?.roundToInt()
     val status = statusOf(item.sessionExpired, item.quota?.updatedAt)
 
     Card(
@@ -265,37 +266,18 @@ private fun AccountCard(
                 Button(onClick = onReconnect, modifier = Modifier.fillMaxWidth()) { Text("重新连接") }
             } else {
                 Spacer(Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                    Column {
-                        Text(
-                            text = if (pct != null) "$pct%" else "—",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "剩余",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Column(horizontalAlignment = Alignment.End) {
-                        val resetAt = item.quota?.resetAt
-                        if (resetAt != null) {
-                            Text(countdown(resetAt), style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                text = "重置",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            Text(
-                                text = "等待首次同步",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    WindowBlock(
+                        label = "5 小时",
+                        window = item.quota?.fiveHour,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    WindowBlock(
+                        label = "7 天",
+                        window = item.quota?.sevenDay,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -465,6 +447,38 @@ private fun LoginCard(
             Button(onClick = onPrimary, modifier = Modifier.fillMaxWidth()) {
                 Text(login.buttonLabel)
             }
+        }
+    }
+}
+
+@Composable
+private fun WindowBlock(label: String, window: QuotaWindow?, modifier: Modifier) {
+    Column(modifier) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = window?.let { "${it.remainingPercent.roundToInt()}%" } ?: "—",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(2.dp))
+        val reset = window?.resetAt
+        if (reset != null) {
+            Text(
+                text = countdown(reset),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Text(
+                text = "等待同步",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

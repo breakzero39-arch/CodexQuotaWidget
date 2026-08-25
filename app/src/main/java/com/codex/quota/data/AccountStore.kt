@@ -34,6 +34,8 @@ class AccountStore(private val context: Context) {
         fun sessionExpired(id: String) = booleanPreferencesKey("accounts/$id/session_expired")
         fun qRemaining(id: String) = floatPreferencesKey("accounts/$id/quota_remaining")
         fun qReset(id: String) = longPreferencesKey("accounts/$id/quota_reset_millis")
+        fun q7Remaining(id: String) = floatPreferencesKey("accounts/$id/quota7_remaining")
+        fun q7Reset(id: String) = longPreferencesKey("accounts/$id/quota7_reset_millis")
         fun qUpdated(id: String) = longPreferencesKey("accounts/$id/quota_updated_millis")
         fun qHasBonus(id: String) = booleanPreferencesKey("accounts/$id/quota_has_bonus")
         fun qBonusLabel(id: String) = stringPreferencesKey("accounts/$id/quota_bonus_label")
@@ -81,15 +83,21 @@ class AccountStore(private val context: Context) {
         }
     }
 
-    suspend fun saveQuota(accountId: String, quota: CodexQuota) {
+    suspend fun saveQuota(accountId: String, snapshot: QuotaSnapshot) {
         context.codexAccountsDataStore.edit { prefs ->
-            prefs[Keys.qRemaining(accountId)] = quota.remainingPercent
-            prefs[Keys.qReset(accountId)] = quota.resetAt.toEpochMilli()
-            prefs[Keys.qUpdated(accountId)] = quota.updatedAt.toEpochMilli()
-            prefs[Keys.lastSync(accountId)] = quota.updatedAt.toEpochMilli()
+            snapshot.fiveHour?.let { w ->
+                prefs[Keys.qRemaining(accountId)] = w.remainingPercent
+                w.resetAt?.let { prefs[Keys.qReset(accountId)] = it.toEpochMilli() }
+            }
+            snapshot.sevenDay?.let { w ->
+                prefs[Keys.q7Remaining(accountId)] = w.remainingPercent
+                w.resetAt?.let { prefs[Keys.q7Reset(accountId)] = it.toEpochMilli() }
+            }
+            prefs[Keys.qUpdated(accountId)] = snapshot.updatedAt.toEpochMilli()
+            prefs[Keys.lastSync(accountId)] = snapshot.updatedAt.toEpochMilli()
             prefs[Keys.connected(accountId)] = true
             prefs[Keys.sessionExpired(accountId)] = false
-            val bonus = quota.bonus
+            val bonus = snapshot.bonus
             if (bonus != null) {
                 prefs[Keys.qHasBonus(accountId)] = true
                 prefs[Keys.qBonusLabel(accountId)] = bonus.label
@@ -168,8 +176,22 @@ class AccountStore(private val context: Context) {
     )
 
     private fun Preferences.quota(id: String): AccountQuota? {
-        val remaining = this[Keys.qRemaining(id)] ?: return null
         val updated = this[Keys.qUpdated(id)] ?: return null
+        val fiveHour = this[Keys.qRemaining(id)]?.let { remaining ->
+            QuotaWindow(
+                remainingPercent = remaining,
+                resetAt = this[Keys.qReset(id)]?.takeIf { it > 0L }?.let(Instant::ofEpochMilli),
+                windowType = WindowType.FIVE_HOUR
+            )
+        }
+        val sevenDay = this[Keys.q7Remaining(id)]?.let { remaining ->
+            QuotaWindow(
+                remainingPercent = remaining,
+                resetAt = this[Keys.q7Reset(id)]?.takeIf { it > 0L }?.let(Instant::ofEpochMilli),
+                windowType = WindowType.SEVEN_DAY
+            )
+        }
+        if (fiveHour == null && sevenDay == null) return null
         val bonus = if (this[Keys.qHasBonus(id)] == true) {
             BonusQuota(
                 label = this[Keys.qBonusLabel(id)] ?: "特殊额度",
@@ -179,8 +201,8 @@ class AccountStore(private val context: Context) {
         } else null
         return AccountQuota(
             accountId = id,
-            remainingPercent = remaining,
-            resetAt = this[Keys.qReset(id)]?.takeIf { it > 0L }?.let(Instant::ofEpochMilli),
+            fiveHour = fiveHour,
+            sevenDay = sevenDay,
             updatedAt = Instant.ofEpochMilli(updated),
             bonus = bonus
         )

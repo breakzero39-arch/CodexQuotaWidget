@@ -15,16 +15,17 @@ data class CodexAccount(
     val lastSyncAt: Instant?
 )
 
-/** Per-account quota snapshot. resetAt is nullable so a never-fetched account has a valid row. */
+/** Per-account quota snapshot across both rolling windows (5-hour primary + 7-day). */
 data class AccountQuota(
     val accountId: String,
-    val remainingPercent: Float,
-    val resetAt: Instant?,
+    val fiveHour: QuotaWindow?,
+    val sevenDay: QuotaWindow?,
     val updatedAt: Instant,
     val bonus: BonusQuota? = null
 ) {
-    fun toQuota(): CodexQuota? = resetAt?.let {
-        CodexQuota(remainingPercent, it, updatedAt, bonus)
+    /** Primary (5-hour) window as the single CodexQuota the widget renders; null if not yet synced. */
+    fun toQuota(): CodexQuota? = fiveHour?.let { w ->
+        w.resetAt?.let { CodexQuota(w.remainingPercent, it, updatedAt, bonus) }
     }
 }
 

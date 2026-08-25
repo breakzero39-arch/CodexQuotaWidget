@@ -19,7 +19,7 @@ class ChatGptQuotaRepository(
         val tokens = authStore.tokens(accountId)
             ?: throw QuotaException(QuotaError.NOT_LOGGED_IN, "not logged in")
         Log.d(TAG, "refresh($accountId) fetchUsage start")
-        val quota = try {
+        val snapshot = try {
             usageClient.fetchUsage(tokens)
         } catch (e: QuotaException) {
             if (e.error != QuotaError.SESSION_EXPIRED) {
@@ -39,10 +39,12 @@ class ChatGptQuotaRepository(
             authStore.save(accountId, fresh)
             usageClient.fetchUsage(fresh)
         }
-        Log.d(TAG, "refresh($accountId) ok remaining=${quota.remainingPercent}%")
-        store.saveQuota(accountId, quota)
+        val primary = snapshot.primary
+            ?: throw QuotaException(QuotaError.PARSE, "no primary window")
+        Log.d(TAG, "refresh($accountId) ok 5h=${snapshot.fiveHour?.remainingPercent}% 7d=${snapshot.sevenDay?.remainingPercent}%")
+        store.saveQuota(accountId, snapshot)
         store.setSessionExpired(accountId, false)
-        return quota
+        return primary
     }
 
     private companion object {

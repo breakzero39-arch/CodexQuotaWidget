@@ -1,9 +1,9 @@
 {
-    "versionCode":  17,
-    "versionName":  "1.3.9",
-    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.3.9.apk",
-    "sha256":  "77bf6d2d256a5ec0b0a46c23fbc48d683644dbcae8f3348178528ad9e2535620",
+    "versionCode":  18,
+    "versionName":  "1.4.0",
+    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.4.0.apk",
+    "sha256":  "f4f5992a7357e9b58b98df0efcf6d662927af37081db86fd6d3c960ebd7b6186",
     "changelog":  [
-                      "优化后台刷新频率：给全量刷新加 5 分钟抓取下限（桌面频繁触发 widget 更新时不再每次打接口，重绘保持即时；真实额度抓取最多每 5 分钟一次）"
+                      "新增：App 内账号卡片支持双时间窗口额度显示（5 小时 + 7 天，各显示剩余百分比和重置倒计时）；桌面 Widget 保持不变，继续显示 5 小时主要额度"
                   ]
 }
