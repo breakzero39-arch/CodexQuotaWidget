@@ -26,6 +26,8 @@ class AccountStore(private val context: Context) {
 
     private object Keys {
         val accountIds = stringSetPreferencesKey("account_ids")
+        // Comma-joined account ids in user-chosen order; ids absent from account_ids are ignored.
+        val order = stringPreferencesKey("account_order")
         fun name(id: String) = stringPreferencesKey("accounts/$id/display_name")
         fun email(id: String) = stringPreferencesKey("accounts/$id/email")
         fun connected(id: String) = booleanPreferencesKey("accounts/$id/connected")
@@ -46,7 +48,11 @@ class AccountStore(private val context: Context) {
 
     /** Full account list (metadata + quota + auth state), reactive to any key change. */
     val accountData: Flow<List<AccountData>> = context.codexAccountsDataStore.data.map { prefs ->
-        (prefs[Keys.accountIds] ?: emptySet()).sorted().map { id ->
+        val ids = prefs[Keys.accountIds] ?: emptySet()
+        // User order first; new accounts append sorted; removed ids are dropped.
+        val ordered = prefs[Keys.order]?.split(",")?.filter { it in ids } ?: emptyList()
+        val merged = ordered + (ids - ordered.toSet()).sorted()
+        merged.map { id ->
             AccountData(
                 account = prefs.account(id),
                 quota = prefs.quota(id),
@@ -71,6 +77,11 @@ class AccountStore(private val context: Context) {
         return (prefs[Keys.accountIds] ?: emptySet())
             .filter { prefs[Keys.connected(it)] != false }
             .sorted()
+    }
+
+    /** Persists user-chosen display order. Unknown/removed ids are tolerated (ignored on read). */
+    suspend fun setAccountOrder(orderedIds: List<String>) {
+        context.codexAccountsDataStore.edit { it[Keys.order] = orderedIds.joinToString(",") }
     }
 
     suspend fun addAccount(accountId: String, displayName: String?, email: String?) {

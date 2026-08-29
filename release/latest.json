@@ -1,9 +1,10 @@
 {
-    "versionCode":  18,
-    "versionName":  "1.4.0",
-    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.4.0.apk",
-    "sha256":  "f4f5992a7357e9b58b98df0efcf6d662927af37081db86fd6d3c960ebd7b6186",
+    "versionCode":  19,
+    "versionName":  "1.4.1",
+    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.4.1.apk",
+    "sha256":  "b2b6d2b0d219f714991ebb1daef0db265f7e01098279c996b0b2a3bf13f58162",
     "changelog":  [
-                      "新增：App 内账号卡片支持双时间窗口额度显示（5 小时 + 7 天，各显示剩余百分比和重置倒计时）；桌面 Widget 保持不变，继续显示 5 小时主要额度"
+                      "新增账号长按拖动排序",
+                      "刷新/重启后保持自定义顺序"
                   ]
 }

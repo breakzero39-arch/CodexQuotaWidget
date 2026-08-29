@@ -10,9 +10,11 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,10 +23,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -51,11 +53,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codex.quota.BuildConfig
 import com.codex.quota.data.AccountStatus
@@ -119,69 +124,176 @@ private fun ConfigScreen() {
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        Column(
+        ReorderableAccountList(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+                .padding(padding),
+            accounts = accounts,
+            login = login,
+            refreshing = refreshing,
+            rotationDegrees = rotation.value,
+            updateState = updateState,
+            updateVm = updateVm,
+            onRefreshAll = vm::refreshAll,
+            onLoginPrimary = vm::onPrimaryAction,
+            onLoginVerification = {
+                val url = login.verificationUrl ?: CodexOAuthClient.VERIFICATION_URL
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            },
+            onAddAccount = vm::addAccount,
+            onReorder = vm::reorder,
+            onRefresh = { vm.refresh(it) },
+            onReconnect = { vm.reconnect(it) },
+            onRemove = { vm.removeAccount(it) }
+        )
+    }
+}
+
+/**
+ * The whole settings list. Account cards live in a LazyColumn (needed for drag-reorder)
+ * and reorder on long-press-drag: the dragged card rides on translationY while `order`
+ * swaps slot-by-slot underneath; the new order is persisted only when the drag ends.
+ */
+@Composable
+private fun ReorderableAccountList(
+    modifier: Modifier = Modifier,
+    accounts: List<AccountListItem>,
+    login: LoginUiState,
+    refreshing: Boolean,
+    rotationDegrees: Float,
+    updateState: UpdateUiState,
+    updateVm: UpdateViewModel,
+    onRefreshAll: () -> Unit,
+    onLoginPrimary: () -> Unit,
+    onLoginVerification: () -> Unit,
+    onAddAccount: () -> Unit,
+    onReorder: (List<String>) -> Unit,
+    onRefresh: (String) -> Unit,
+    onReconnect: (String) -> Unit,
+    onRemove: (String) -> Unit
+) {
+    // Live display order of account ids — mirrors DataStore, rewritten by drag. Keyed on the
+    // id SET so quota refreshes (same ids) never reset a mid-list order.
+    var order by remember { mutableStateOf<List<String>>(emptyList()) }
+    val idsKey = accounts.joinToString(",") { it.account.id }
+    LaunchedEffect(idsKey) {
+        val ids = accounts.map { it.account.id }
+        if (order.toSet() != ids.toSet()) order = ids
+    }
+    val ordered = remember(order, accounts) {
+        order.mapNotNull { id -> accounts.firstOrNull { it.account.id == id } }
+    }
+
+    var draggingId by remember { mutableStateOf<String?>(null) }
+    var draggingIndex by remember { mutableStateOf(0) }
+    var dragOffset by remember { mutableStateOf(0f) }
+    // Card heights captured lazily at drag start; plain map (never read in composition).
+    val heights = remember { mutableMapOf<String, Float>() }
+    val finishDrag: () -> Unit = {
+        if (order != accounts.map { it.account.id }) onReorder(order)
+        draggingId = null
+        dragOffset = 0f
+    }
+
+    LazyColumn(
+        modifier = modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
             Header(
                 accountCount = accounts.size,
                 refreshing = refreshing,
-                rotationDegrees = rotation.value,
-                onRefreshAll = vm::refreshAll
+                rotationDegrees = rotationDegrees,
+                onRefreshAll = onRefreshAll
             )
-            Spacer(Modifier.height(20.dp))
+        }
 
+        item {
             if (login.active) {
-                val loginName = accounts.firstOrNull { it.account.id == login.accountId }?.account?.displayName
                 LoginCard(
                     login = login,
-                    loginName = loginName,
-                    onPrimary = vm::onPrimaryAction,
-                    onOpenVerification = {
-                        val url = login.verificationUrl ?: CodexOAuthClient.VERIFICATION_URL
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    }
+                    loginName = accounts.firstOrNull { it.account.id == login.accountId }?.account?.displayName,
+                    onPrimary = onLoginPrimary,
+                    onOpenVerification = onLoginVerification
                 )
-                Spacer(Modifier.height(16.dp))
             }
+        }
 
-            accounts.forEach { item ->
+        items(ordered, key = { it.account.id }) { item ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .zIndex(if (draggingId == item.account.id) 1f else 0f)
+                    .graphicsLayer { translationY = if (draggingId == item.account.id) dragOffset else 0f }
+                    .pointerInput(item.account.id) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                draggingId = item.account.id
+                                draggingIndex = order.indexOf(item.account.id)
+                                dragOffset = 0f
+                            },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                dragOffset += amount.y
+                                val h = heights[item.account.id] ?: 0f
+                                if (h > 0f) {
+                                    val shift = (dragOffset / h).roundToInt()
+                                        .coerceIn(-draggingIndex, order.lastIndex - draggingIndex)
+                                    if (shift != 0) {
+                                        val to = draggingIndex + shift
+                                        order = order.toMutableList().apply {
+                                            val id = removeAt(draggingIndex)
+                                            add(to, id)
+                                        }
+                                        draggingIndex = to
+                                        dragOffset -= shift * h
+                                    }
+                                }
+                            },
+                            onDragEnd = { finishDrag() },
+                            onDragCancel = { finishDrag() }
+                        )
+                    }
+                    .onGloballyPositioned { heights[item.account.id] = it.size.height.toFloat() }
+            ) {
                 AccountCard(
                     item = item,
-                    onRefresh = { vm.refresh(item.account.id) },
-                    onReconnect = { vm.reconnect(item.account.id) },
-                    onRemove = { vm.removeAccount(item.account.id) }
+                    onRefresh = { onRefresh(item.account.id) },
+                    onReconnect = { onReconnect(item.account.id) },
+                    onRemove = { onRemove(item.account.id) }
                 )
-                Spacer(Modifier.height(12.dp))
             }
+        }
 
-            if (accounts.isEmpty()) {
+        if (accounts.isEmpty()) {
+            item {
                 Text(
                     "还没有账号，先添加一个",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(12.dp))
             }
+        }
 
-            OutlinedButton(onClick = vm::addAccount, modifier = Modifier.fillMaxWidth()) {
+        item {
+            OutlinedButton(onClick = onAddAccount, modifier = Modifier.fillMaxWidth()) {
                 Text("+ 添加账号")
             }
+        }
 
-            Spacer(Modifier.height(32.dp))
-            Text("如何添加小组件", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "长按主屏幕空白处 → 小组件 → Codex Quota → 选择要绑定的账号，再添加到桌面。",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(Modifier.height(24.dp))
-            UpdateSection(state = updateState, vm = updateVm)
-            Spacer(Modifier.height(32.dp))
+        item {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(Modifier.height(20.dp))
+                Text("如何添加小组件", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "长按主屏幕空白处 → 小组件 → Codex Quota → 选择要绑定的账号，再添加到桌面。",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(24.dp))
+                UpdateSection(state = updateState, vm = updateVm)
+            }
         }
     }
 }

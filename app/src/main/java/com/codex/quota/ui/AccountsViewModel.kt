@@ -149,6 +149,11 @@ class AccountsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** Persists the user's drag-reordered account id sequence. */
+    fun reorder(orderedIds: List<String>) {
+        viewModelScope.launch { container.store.setAccountOrder(orderedIds) }
+    }
+
     fun removeAccount(accountId: String) {
         viewModelScope.launch {
             container.authStore.clear(accountId)
