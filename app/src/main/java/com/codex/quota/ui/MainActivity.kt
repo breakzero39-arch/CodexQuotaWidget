@@ -221,11 +221,22 @@ private fun ReorderableAccountList(
         }
 
         items(ordered, key = { it.account.id }) { item ->
+            val dragging = draggingId == item.account.id
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .zIndex(if (draggingId == item.account.id) 1f else 0f)
-                    .graphicsLayer { translationY = if (draggingId == item.account.id) dragOffset else 0f }
+                    .zIndex(if (dragging) 1f else 0f)
+                    .graphicsLayer {
+                        if (dragging) {
+                            translationY = dragOffset
+                            scaleX = 1.05f
+                            scaleY = 1.05f
+                        }
+                    }
+                    // The held card must NOT animate its placement — its slot change is
+                    // countered instantly by dragOffset so it stays under the finger.
+                    // The neighbors animate, gliding to their new slots instead of jumping.
+                    .then(if (dragging) Modifier else Modifier.animateItem())
                     .pointerInput(item.account.id) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = {

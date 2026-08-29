@@ -1,10 +1,9 @@
 {
-    "versionCode":  19,
-    "versionName":  "1.4.1",
-    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.4.1.apk",
-    "sha256":  "b2b6d2b0d219f714991ebb1daef0db265f7e01098279c996b0b2a3bf13f58162",
+    "versionCode":  20,
+    "versionName":  "1.4.2",
+    "apkUrl":  "https://cdn.jsdelivr.net/gh/breakzero39-arch/CodexQuotaWidget@main/release/CodexQuota-v1.4.2.apk",
+    "sha256":  "801ce256aca065744a12b8261158a396a126293817eb2a3b90c1fed6e5d855e0",
     "changelog":  [
-                      "新增账号长按拖动排序",
-                      "刷新/重启后保持自定义顺序"
+                      "拖动换位更顺滑：按住卡片放大，其他卡片平滑移动到新位置"
                   ]
 }

@@ -25,8 +25,8 @@ android {
         applicationId = "com.codex.quota"
         minSdk = 24
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.4.1"
+        versionCode = 20
+        versionName = "1.4.2"
     }
 
     signingConfigs {
