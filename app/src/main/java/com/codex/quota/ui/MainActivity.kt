@@ -33,7 +33,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -326,8 +325,10 @@ private fun Header(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        IconButton(onClick = onRefreshAll, enabled = !refreshing) {
-            Text("↻", fontSize = 24.sp, modifier = Modifier.graphicsLayer { rotationZ = rotationDegrees })
+        Button(onClick = onRefreshAll, enabled = !refreshing) {
+            Text("↻", fontSize = 16.sp, modifier = Modifier.graphicsLayer { rotationZ = rotationDegrees })
+            Spacer(Modifier.width(6.dp))
+            Text(if (refreshing) "刷新中…" else "刷新全部")
         }
     }
 }
